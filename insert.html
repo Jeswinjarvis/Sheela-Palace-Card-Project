@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insert Member – Sheela Palace</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    :root {
+      --bg: #000000;
+      --panel: #0f172a;
+      --muted: #93a4bf;
+      --text: #e5e7eb;
+      --line: #1f2a44;
+      --accent: #38bdf8;
+      --accent2: #6366f1;
+      --good: #22c55e;
+      --bad: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1f2937 0%, transparent 60%),
+        radial-gradient(1000px 500px at 110% 110%, #0f172a 0%, transparent 60%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(99, 102, 241, .15), rgba(56, 189, 248, .08) 60%, transparent);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      font-weight: 700;
+      letter-spacing: .2px
+    }
+
+    .branch {
+      opacity: .9
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #0f172a;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.small {
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(15, 23, 42, .7);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+      backdrop-filter: blur(6px);
+    }
+
+    #scanner-card {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .status {
+      margin-top: 8px;
+      color: var(--muted);
+      min-height: 22px;
+    }
+
+    .status .ok {
+      color: var(--good);
+      font-weight: 600;
+    }
+
+    .status .bad {
+      color: var(--bad);
+      font-weight: 600;
+    }
+
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 18px
+    }
+
+    .row {
+      margin: 10px 0;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #0f1627;
+      color: var(--text);
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    .toast.ok {
+      color: var(--good);
+    }
+
+    .toast.bad {
+      color: var(--bad);
+    }
+
+    .pill {
+      font-size: 12px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #0f172a;
+      color: var(--muted);
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .warn {
+      margin-top: 8px;
+      color: #fca5a5;
+      font-size: 13px;
+      display: none;
+    }
+
+    /* watermark logo (centered, light, click-through) */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: url('https://sheelapalaceliffeyvalley.com/assets/club/logo-club.png') no-repeat center center;
+      background-size: clamp(320px, 45vw, 720px);
+      opacity: 0.12;
+      /* light transparent */
+      pointer-events: none;
+      /* don't block clicks */
+      z-index: 9999;
+      /* sit above cards so it stays visible */
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>
+      <div class="brand">Sheela Palace • Insert Member</div>
+      <div class="branch">Active branch: <span id="branch-name">—</span></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn ghost" type="button" onclick="window.location.href='Display.html'">Back to Scanner</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Scanner (left) -->
+    <section class="card" id="scanner-card">
+      <h2>QR Scanner</h2>
+      <div id="reader"></div>
+      <div class="status" id="scan-msg">Initializing…</div>
+      <div style="margin-top:8px;">
+        <span class="pill">Scanned ID: <span id="qr-result">—</span></span>
+        <span class="pill">Secure context: <span id="secure-ctx">—</span></span>
+      </div>
+      <div class="row" style="display:flex; gap:8px; margin-top:10px;">
+        <button id="rescan" class="btn" type="button">Rescan</button>
+        <button id="scan-image" class="btn primary" type="button">Scan from photo</button>
+        <input id="pick-image" type="file" accept="image/*" capture="environment" style="display:none;">
+      </div>
+    </section>
+
+    <!-- Form (right) -->
+    <section class="card">
+      <h2>New Member Details</h2>
+      <form id="insert-form" autocomplete="off">
+        <div class="row">
+          <label for="qrid">QR Code ID</label>
+          <input id="qrid" name="qrid" placeholder="Scan or type QR ID" required />
+        </div>
+        <div class="row">
+          <label for="name">Name</label>
+          <input id="name" name="name" placeholder="Full name" required />
+        </div>
+        <div class="row">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="name@example.com" required />
+        </div>
+        <div class="row">
+          <label for="dob">Date of Birth</label>
+          <input id="dob" name="dob" type="date" />
+        </div>
+        <div class="row">
+          <label for="phone">Phone Number</label>
+          <input id="phone" name="phone" type="tel" pattern="[0-9+ ]*" required />
+        </div>
+        <div class="row">
+          <label for="cardtype">Card Type</label>
+          <input id="cardtype" name="card_type" placeholder="Auto-detected from QR" readonly />
+        </div>
+
+        <!-- Hidden location pulled from localStorage and submitted to the sheet -->
+        <input id="location" name="location" type="hidden" />
+
+        <div class="warn" id="loc-warn">No location found in this browser. Go to the login page to set a location.</div>
+
+        <div class="form-actions">
+          <button class="btn primary" type="submit">Save Member</button>
+          <!-- Hidden by default; will show after successful save -->
+          <button id="free-food" class="btn" type="button" style="display:none;">Monthly Free Dinning</button>
+          <span id="form-msg" class="toast muted"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    // ======= Location from localStorage (saved by login page) =======
+    const BRANCH_KEY = "branch_location";
+    const savedLocation = localStorage.getItem(BRANCH_KEY) || "";
+    const branchNameEl = document.getElementById("branch-name");
+    const locationInput = document.getElementById("location");
+    const locWarn = document.getElementById("loc-warn");
+    const freeFoodBtn = document.getElementById("free-food");
+
+    branchNameEl.textContent = savedLocation || "— (no selection)";
+    locationInput.value = savedLocation;
+    if (!savedLocation) { locWarn.style.display = "block"; }
+
+    // ======= Apps Script endpoint =======
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBLU3_4xZ-oG-pmsD4tIC4yPjwMbKpnwv6tso5I6vs6TnA-q413o2vVBrc0aZIWXs/exec";
+
+    // ======= QR Scanner =======
+    let qrScanner = null;
+    const scanMsg = document.getElementById("scan-msg");
+    const secureOK = (location.protocol === "https:") || (location.hostname === "localhost");
+    document.getElementById("secure-ctx").textContent = secureOK ? "Yes" : "No";
+
+    function detectCardType(text) {
+      const p = String(text || '').substring(0, 3).toUpperCase();
+      if (p === 'GOL') return 'Gold Card';
+      if (p === 'PLT') return 'Platinum Card';
+      if (p === 'DIA') return 'Diamond Card';
+      return 'Unknown';
+    }
+
+    function fillFromScan(decodedText) {
+      document.getElementById("qr-result").textContent = decodedText;
+      const qrid = document.getElementById("qrid");
+      const cardtype = document.getElementById("cardtype");
+      qrid.value = decodedText;
+      cardtype.value = detectCardType(decodedText);
+    }
+
+    async function startCamera() {
+      if (!qrScanner) qrScanner = new Html5Qrcode("reader");
+      try {
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+        scanMsg.textContent = 'Camera started. Point it at a QR code.';
+      } catch (err) {
+        scanMsg.innerHTML = "Camera failed: " + err + " — open over HTTPS or in Chrome/Safari.";
+        console.error(err);
+      }
+    }
+
+    function stopCamera() {
+      if (qrScanner) return qrScanner.stop().catch(() => { });
+    }
+
+    function onScanSuccess(decodedText) {
+      fillFromScan(decodedText);
+      stopCamera();
+    }
+    function onScanError(_) { /* ignore continuous errors */ }
+
+    document.getElementById("rescan").addEventListener("click", async () => {
+      await stopCamera();
+      startCamera();
+    });
+
+    document.getElementById('scan-image').addEventListener('click', () => {
+      document.getElementById('pick-image').click();
+    });
+    document.getElementById('pick-image').addEventListener('change', async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      try {
+        if (!qrScanner) qrScanner = new Html5Qrcode('reader', { verbose: false });
+        const result = await qrScanner.scanFile(file, true); // returns decoded text
+        fillFromScan(result);
+        scanMsg.textContent = "QR decoded from image.";
+      } catch (e) {
+        scanMsg.textContent = "Failed to decode image: " + (e?.message || e);
+        console.error(e);
+      }
+    });
+
+    // Click handler (stays hidden until success)
+    freeFoodBtn.addEventListener('click', () => {
+      window.location.href = 'Checkfree.html';
+    });
+
+    // Boot the camera immediately
+    startCamera();
+
+    // ======= Form Submit =======
+    document.getElementById('insert-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formMsg = document.getElementById('form-msg');
+      formMsg.className = "toast muted";
+      formMsg.textContent = 'Saving...';
+
+      // Ensure latest localStorage value (in case user changed it in another tab)
+      locationInput.value = localStorage.getItem(BRANCH_KEY) || "";
+
+      const form = new FormData(e.target);
+      form.append('action', 'addMember');
+
+      const payload = new URLSearchParams();
+      for (const [k, v] of form.entries()) payload.append(k, v);
+
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: payload.toString()
+        });
+        const data = await res.json();
+
+        if (data.result === 'success') {
+          formMsg.className = "toast ok";
+          formMsg.textContent = 'Member saved!';
+          // Show Monthly Free Dinning button ONLY after success
+          freeFoodBtn.style.display = 'inline-block';
+        } else if (data.result === 'duplicate') {
+          formMsg.className = "toast bad";
+          formMsg.textContent = data.message || 'Duplicate QR Code ID.';
+          freeFoodBtn.style.display = 'none';
+        } else {
+          formMsg.className = "toast bad";
+          formMsg.textContent = 'Error: ' + (data.error || JSON.stringify(data));
+          freeFoodBtn.style.display = 'none';
+          console.log('Server payload:', data);
+        }
+      } catch (err) {
+        formMsg.className = "toast bad";
+        formMsg.textContent = 'Network error: ' + err.message;
+        freeFoodBtn.style.display = 'none';
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+
+</html>

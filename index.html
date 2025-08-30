@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Branch Login</title>
+  <style>
+    :root { --bg:#0b1220; --card:#000000; --text:#e5e7eb; --muted:#9ca3af; --danger:#ef4444; }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh; display:grid; place-items:center;
+      background:#000000; color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap { width:100%; max-width:420px; padding:24px; }
+    .card {
+      background:var(--card); border:1px solid #243047; border-radius:16px; padding:24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    h1 { margin:0 0 4px 0; font-size:24px; }
+    p.sub { margin:0 0 18px 0; color:var(--muted); font-size:14px; }
+    label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+    select, input[type="password"], input[type="text"] {
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid #2b3a58;
+      background:#0f1627; color:var(--text); outline:none;
+    }
+    .row { margin:12px 0; }
+    .inline { display:flex; gap:8px; align-items:center; }
+    button {
+      width:100%; padding:12px 14px; border:0; border-radius:12px;
+      background:#2563eb; color:#fff; font-weight:600; cursor:pointer;
+    }
+    .muted { color:var(--muted); font-size:13px; }
+    .error { color:var(--danger); font-size:13px; margin-top:8px; min-height:18px; }
+    .blocker { display:none; text-align:center; padding:16px; border-radius:12px; border:1px dashed #ef4444; color:#fecaca; background:#111827; }
+    @media (max-width: 820px) {
+      .card { display:none; }
+      .blocker { display:block; }
+    }
+
+     /* watermark logo (centered, light, click-through) */
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      background: url('https://sheelapalaceliffeyvalley.com/assets/club/logo-club.png') no-repeat center center;
+      background-size: clamp(320px, 45vw, 720px);
+      opacity: 0.12;           /* light transparent */
+      pointer-events: none;     /* don't block clicks */
+      z-index: 9999;            /* sit above cards so it stays visible */
+    }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div style="color:#ef4444;background:#111827;padding:12px;border-radius:8px;border:1px solid #ef4444;max-width:600px;">
+      JavaScript is required. Please enable JavaScript and reload.
+    </div>
+  </noscript>
+
+  <div class="wrap">
+    <div class="blocker">This page is only available on laptops/desktops. Please use a larger screen.</div>
+
+    <div class="card" role="form" aria-label="Branch login">
+      <h1>Branch Login</h1>
+      <p class="sub">Choose your location and enter the branch password.</p>
+
+      <div id="loc-row" class="row">
+        <label for="location">Location</label>
+        <select id="location" required>
+          <option value="" selected disabled hidden>Select branch…</option>
+          <option>Lucan</option>
+          <option>Liffey Valley</option>
+          <option>Waterford</option>
+        </select>
+        <p class="muted">Your choice is saved to this device.</p>
+      </div>
+
+      <div id="saved-info" class="muted" style="display:none;margin-top:-6px;margin-bottom:8px;"></div>
+
+      <div class="row">
+        <label for="password">Password</label>
+        <div class="inline">
+          <input id="password" type="password" inputmode="text" autocomplete="current-password" placeholder="Enter Password" required />
+          <button id="toggle" type="button" style="width:auto;padding:10px 12px;background:#374151;">Show</button>
+        </div>
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <div class="row">
+        <button id="login-btn" type="button">Login</button>
+        <p class="muted" style="margin-top:10px;">Sheela Palace </p>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const LOCATIONS = ["Lucan","Liffey Valley","Waterford"];
+  const _normLoc = (v) => String(v||"").replace(/\s+/g," ").trim().toLowerCase();
+  const _LOCATIONS_NORM = LOCATIONS.map(_normLoc);
+  const isValidLocation = (v) => _LOCATIONS_NORM.includes(_normLoc(v));
+  const STORAGE_KEY = "branch_location";
+  const SUFFIX = "@sheelapalace";
+
+  const sel = document.getElementById("location");
+  const locRow = document.getElementById("loc-row");
+  const savedInfo = document.getElementById("saved-info");
+  const pwd = document.getElementById("password");
+  const btn = document.getElementById("login-btn");
+  const err = document.getElementById("error");
+  const tgl = document.getElementById("toggle");
+
+  let saved = localStorage.getItem(STORAGE_KEY);
+
+  function showDropdown(show){
+    locRow.style.display = show ? "block" : "none";
+    savedInfo.style.display = show ? "none" : "block";
+  }
+
+  // Initial state based on saved location
+  if (saved && isValidLocation(saved)) {
+    showDropdown(false);
+    savedInfo.textContent = "Please Enter Your Password";
+  } else {
+    showDropdown(true);
+  }
+
+  // Save on change
+  sel.addEventListener("change", () => {
+    const value = (sel.value || "").trim();
+    if (isValidLocation(value)) {
+      localStorage.setItem(STORAGE_KEY, value);
+      saved = value;
+    }
+  });
+
+  // Toggle password visibility
+  tgl.addEventListener("click", () => {
+    const showing = pwd.type === "text";
+    pwd.type = showing ? "password" : "text";
+    tgl.textContent = showing ? "Show" : "Hide";
+    pwd.focus();
+  });
+
+  // Validate and redirect
+  btn.addEventListener("click", () => {
+    err.textContent = "";
+
+    // Use saved branch if exists, otherwise use dropdown
+    const chosen = (saved && isValidLocation(saved)) ? saved : (sel.value || "").trim();
+
+    if (!isValidLocation(chosen)) {
+      err.textContent = "Please select a location.";
+      sel.focus();
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, chosen); // ensure stored
+
+    const expected = chosen + SUFFIX; // case-sensitive
+    const input = String(pwd.value || "");
+    if (input !== expected) {
+      err.textContent = "Incorrect password for selected location.";
+      pwd.focus();
+      return;
+    }
+    window.location.href = "Display.html";
+  });
+})();
+</script>
+</body>
+</html>

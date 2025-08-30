@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Free Meal Redemption – Sheela Palace</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    :root{
+      --bg:#000000; --panel:#0f172a; --muted:#93a4bf; --text:#e5e7eb; --line:#1f2a44;
+      --accent:#38bdf8; --accent2:#6366f1; --good:#22c55e; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1f2937 0%, transparent 60%),
+        radial-gradient(1000px 500px at 110% 110%, #0f172a 0%, transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:16px 20px; border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(99,102,241,.15), rgba(56,189,248,.08) 60%, transparent);
+      position:sticky; top:0; z-index:5;
+    }
+    .brand{font-weight:700; letter-spacing:.2px}
+    .branch{opacity:.9}
+    .toolbar{display:flex; gap:8px; align-items:center}
+    .btn{
+      padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:#0f172a; color:#fff; cursor:pointer;
+    }
+    .btn.primary{ border-color:transparent; background:linear-gradient(180deg, var(--accent), var(--accent2)); }
+    .btn.ghost{ background:transparent; }
+    .btn.small{ padding:8px 12px; font-size:14px; }
+    .container{
+      max-width:1200px; margin:24px auto; padding:0 16px;
+      display:grid; grid-template-columns: 360px 1fr; gap:16px; align-items:start;
+    }
+    @media (max-width: 980px){ .container{ grid-template-columns: 1fr; } }
+    .card{
+      background:rgba(0, 0, 0, 0.7); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(6px);
+    }
+    #reader{ width:100%; max-width:100%; border-radius:12px; overflow:hidden; }
+    h2{ margin:0 0 8px 0; font-size:18px }
+    .muted{ color:var(--muted); }
+    .status{ margin-top:8px; color:var(--muted); min-height:22px; }
+    .ok{ color:var(--good); font-weight:600; }
+    .bad{ color:var(--bad); font-weight:600; }
+    .pill{ font-size:12px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; background:#0f172a; color:var(--muted); display:inline-block; margin-right:6px;}
+    .grid{ display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+    label{ font-size:12px; color:var(--muted); margin-bottom:4px; display:block; }
+    input{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#0f1627; color:#e5e7eb; }
+    input[readonly]{ opacity:.9; }
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    th,td{ padding:10px; border-bottom:1px solid var(--line); }
+    th{ background:rgba(99,102,241,.15); text-align:left; }
+    tr:hover td{ background:rgba(56,189,248,.05); }
+    .actions { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+     /* watermark logo (centered, light, click-through) */
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      background: url('https://sheelapalaceliffeyvalley.com/assets/club/logo-club.png') no-repeat center center;
+      background-size: clamp(320px, 45vw, 720px);
+      opacity: 0.12;           /* light transparent */
+      pointer-events: none;     /* don't block clicks */
+      z-index: 9999;            /* sit above cards so it stays visible */
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand">Sheela Palace • Free Meal Redemption</div>
+      <div class="branch">Active branch: <span id="branch-name">—</span></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn ghost" type="button" onclick="window.location.href='Display.html'">Back to Scanner</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Left: scanner -->
+    <section class="card">
+      <h2>QR Scanner</h2>
+      <div id="reader"></div>
+      <div class="status" id="scan-msg">Initializing…</div>
+      <div style="margin-top:8px;">
+        <span class="pill">Scanned ID: <span id="qrid-tag">—</span></span>
+        <span class="pill">Secure context: <span id="secure-ctx">—</span></span>
+      </div>
+      <div class="actions">
+        <button id="rescan" class="btn" type="button">Rescan</button>
+        <button id="scan-image" class="btn primary" type="button">Scan from photo</button>
+        <input id="pick-image" type="file" accept="image/*" capture="environment" style="display:none;">
+      </div>
+    </section>
+
+    <!-- Right: info + form -->
+    <section class="card">
+      <h2>Member & Redemption</h2>
+
+      <div class="card" style="background:transparent; border-style:dashed;">
+        <p class="muted" style="margin:0 0 8px 0;">Member</p>
+        <div id="member-fields" class="grid"></div>
+        <p id="no-member" class="bad" style="display:none;">No member found for this QR ID.</p>
+      </div>
+
+      <div id="status-card" class="card" style="background:transparent; border-style:dashed; display:none;">
+        <p class="muted" style="margin:0 0 8px 0;">Status</p>
+        <div id="status-text" class="muted">—</div>
+        <div id="latest-details" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="history-card" class="card" style="background:transparent; border-style:dashed; display:none;">
+        <p class="muted" style="margin:0 0 8px 0;">Redemption History</p>
+        <div id="history-table"></div>
+        <div id="history-controls" class="actions" style="display:none;"></div>
+      </div>
+
+      <div class="card" style="background:transparent; border-style:dashed;">
+        <p class="muted" style="margin:0 0 8px 0;">Record Free Meal (Sheet2)</p>
+        <form id="redeem-form" class="grid" autocomplete="off">
+          <div>
+            <label>QR Code ID</label>
+            <input id="qrid" name="qrid" readonly>
+          </div>
+          <div>
+            <label>Date</label>
+            <input id="date" name="date" readonly>
+          </div>
+          <div>
+            <label>Time</label>
+            <input id="time" name="time" readonly>
+          </div>
+          <div>
+            <label>How many people</label>
+            <input id="people" name="people" type="number" min="1" step="1" value="1" required>
+          </div>
+          <div>
+            <label>Branch</label>
+            <input id="branch" name="branch" readonly>
+          </div>
+          <div style="grid-column:1/-1;">
+            <button id="save-btn" class="btn primary" type="submit" disabled>Save to Sheet2</button>
+            <span id="save-msg" class="muted" style="margin-left:10px;"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ======= Config =======
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBLU3_4xZ-oG-pmsD4tIC4yPjwMbKpnwv6tso5I6vs6TnA-q413o2vVBrc0aZIWXs/exec';
+
+    let members = [];
+    let headers = [];
+    const safe = v => (v === undefined || v === null || v === '') ? '-' : v;
+
+    // ======= Active Branch + form Branch from localStorage =======
+    const BRANCH_KEY = 'branch_location';
+    const savedBranch = localStorage.getItem(BRANCH_KEY) || '';
+    document.getElementById('branch-name').textContent = savedBranch || '—';
+    const branchInput = document.getElementById('branch');
+    branchInput.value = savedBranch;
+
+    // ======= Time helpers =======
+    function todayDDMMYYYY() {
+      const d = new Date();
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    }
+    function nowHHMM() {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    function monthKey(s) { const [dd,mm,yy] = s.split('/'); return `${yy}-${mm}`; }
+
+    // ======= Data load =======
+    async function loadMembers() {
+      const res = await fetch(`${APPS_SCRIPT_URL}?members=1`);
+      if (!res.ok) throw new Error('Failed to load members');
+      const data = await res.json();
+      headers = data[0].map(h => String(h).trim());
+      members = data.slice(1).map(row => {
+        const o = {}; headers.forEach((h,i) => o[h] = row[i] ?? ''); return o;
+      });
+    }
+    function findMemberByQR(qrid) {
+      const key = headers.find(h => h.toLowerCase().includes('qr') && h.toLowerCase().includes('id')) || 'QR Code ID';
+      return members.find(m => String(m[key]).trim() === String(qrid).trim());
+    }
+    function renderMemberReadonly(member) {
+      const box = document.getElementById('member-fields'); box.innerHTML = '';
+      if (!member) return;
+      headers.forEach(h => {
+        const wrap = document.createElement('div');
+        const val = String(member[h] ?? '').replace(/"/g,'&quot;');
+        wrap.innerHTML = `<label>${h}</label><input readonly value="${val}">`;
+        box.appendChild(wrap);
+      });
+    }
+    function setNow() {
+      document.getElementById('date').value = todayDDMMYYYY();
+      document.getElementById('time').value = nowHHMM();
+    }
+
+    async function loadRedemptions(qrid) {
+      const res = await fetch(`${APPS_SCRIPT_URL}?qrid=${encodeURIComponent(qrid)}`);
+      if (!res.ok) throw new Error('Failed to load redemptions');
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    }
+
+    let historyExpanded = false;
+    function renderStatusAndHistory(redemptions) {
+      const statusCard = document.getElementById('status-card');
+      const statusText = document.getElementById('status-text');
+      const latestDiv  = document.getElementById('latest-details');
+      const histCard   = document.getElementById('history-card');
+      const histTable  = document.getElementById('history-table');
+      const histControls = document.getElementById('history-controls');
+
+      if (!redemptions.length) {
+        statusCard.style.display = 'block';
+        statusText.innerHTML = `<span class="ok">Eligible</span> — No previous redemptions found.`;
+        latestDiv.innerHTML = '';
+        histCard.style.display = 'none';
+        histTable.innerHTML = '';
+        histControls.style.display = 'none';
+        return { alreadyThisMonth:false };
+      }
+
+      const sorted = [...redemptions].sort((a,b) => {
+        const [da,ma,ya] = a.date.split('/').map(Number);
+        const [db,mb,yb] = b.date.split('/').map(Number);
+        const [ha=0,ma2=0] = (a.time||'00:00').split(':').map(Number);
+        const [hb=0,mb2=0] = (b.time||'00:00').split(':').map(Number);
+        return new Date(yb,mb-1,db,hb,mb2) - new Date(ya,ma-1,da,ha,ma2);
+      });
+
+      const nowKey = monthKey(todayDDMMYYYY());
+      const alreadyThisMonth = sorted.some(r => monthKey(r.date) === nowKey);
+      const latest = sorted[0];
+
+      statusCard.style.display = 'block';
+      statusText.innerHTML = alreadyThisMonth
+        ? `<span class="bad">Not eligible</span> — Already redeemed this month.`
+        : `<span class="ok">Eligible</span> — No redemption recorded this month.`;
+
+      latestDiv.innerHTML = `
+        <table>
+          <tr><th colspan="4">Latest Redemption</th></tr>
+          <tr><td><b>Date</b></td><td>${safe(latest.date)}</td>
+              <td><b>Time</b></td><td>${safe(latest.time)}</td></tr>
+          <tr><td><b>Branch</b></td><td>${safe(latest.branch)}</td>
+              <td><b>People</b></td><td>${safe(latest.people)}</td></tr>
+        </table>`;
+
+      histCard.style.display = 'block';
+
+      function drawHistory() {
+        const rows = (historyExpanded ? sorted : sorted.slice(0,2))
+          .map(r => `<tr><td>${safe(r.date)}</td><td>${safe(r.time)}</td><td>${safe(r.branch)}</td><td>${safe(r.people)}</td></tr>`)
+          .join('');
+        histTable.innerHTML = `
+          <table>
+            <tr><th>Date</th><th>Time</th><th>Branch</th><th>People</th></tr>
+            ${rows}
+          </table>
+        `;
+        if (sorted.length > 2) {
+          histControls.style.display = 'flex';
+          histControls.innerHTML = '';
+          const btn = document.createElement('button');
+          btn.className = 'btn small';
+          btn.textContent = historyExpanded ? 'Hide' : 'Show All';
+          btn.addEventListener('click', () => { historyExpanded = !historyExpanded; drawHistory(); });
+          histControls.appendChild(btn);
+        } else {
+          histControls.style.display = 'none';
+        }
+      }
+      drawHistory();
+
+      return { alreadyThisMonth, latest };
+    }
+
+    // ======= Scanner =======
+    let scanner;
+    const scanMsg = document.getElementById('scan-msg');
+    const secureOK = (location.protocol === 'https:') || (location.hostname === 'localhost');
+    document.getElementById('secure-ctx').textContent = secureOK ? 'Yes' : 'No';
+
+    async function onScanSuccess(text) {
+      document.getElementById('qrid-tag').textContent = text;
+      document.getElementById('qrid').value = text;
+
+      const member = findMemberByQR(text);
+      document.getElementById('no-member').style.display = member ? 'none' : 'block';
+      renderMemberReadonly(member);
+      setNow();
+
+      let alreadyThisMonth = false;
+      try {
+        const reds = await loadRedemptions(text);
+        alreadyThisMonth = renderStatusAndHistory(reds).alreadyThisMonth;
+      } catch {
+        document.getElementById('status-card').style.display = 'block';
+        document.getElementById('status-text').innerHTML = `<span class='bad'>Could not load redemption status.</span>`;
+      }
+      // Enable save if we have member, not already this month, and localStorage branch is present
+      document.getElementById('save-btn').disabled = !(member && !alreadyThisMonth && branchInput.value);
+      try { await scanner.stop(); } catch (e) {}
+    }
+    function onScanError() {}
+
+    // ======= Rescan =======
+    document.getElementById('rescan').addEventListener('click', async () => {
+      try {
+        if (!scanner) scanner = new Html5Qrcode('reader');
+        try { await scanner.stop(); } catch (e) {}
+        try { await scanner.clear(); } catch (e) {}
+
+        // Reset UI
+        historyExpanded = false;
+        document.getElementById('qrid').value = '';
+        document.getElementById('qrid-tag').textContent = '—';
+        document.getElementById('member-fields').innerHTML = '';
+        document.getElementById('no-member').style.display = 'none';
+        document.getElementById('status-card').style.display = 'none';
+        document.getElementById('history-card').style.display = 'none';
+        document.getElementById('save-btn').disabled = true;
+        setNow();
+        scanMsg.textContent = 'Camera starting…';
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+        scanMsg.textContent = 'Camera started. Point it at a QR code.';
+      } catch (e) {
+        console.error(e);
+        scanMsg.textContent = 'Failed to restart camera: ' + (e?.message || e);
+      }
+    });
+
+    // Fallback: scan from image
+    document.getElementById('scan-image').addEventListener('click', () => {
+      document.getElementById('pick-image').click();
+    });
+    document.getElementById('pick-image').addEventListener('change', async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      try {
+        if (!scanner) scanner = new Html5Qrcode('reader', { verbose: false });
+        const result = await scanner.scanFile(file, true); // returns decoded text
+        onScanSuccess(result);
+        scanMsg.textContent = "QR decoded from image.";
+      } catch (e) {
+        scanMsg.textContent = "Failed to decode image: " + (e?.message || e);
+        console.error(e);
+      }
+    });
+
+    // ======= Save to Sheet2 =======
+    document.getElementById('redeem-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('save-btn');
+      const msg = document.getElementById('save-msg');
+      saveBtn.disabled = true;
+      msg.textContent = 'Saving...';
+
+      const payload = {
+        action: 'redeem',
+        qrid: document.getElementById('qrid').value.trim(),
+        date: document.getElementById('date').value.trim(),
+        time: document.getElementById('time').value.trim(),
+        people: Number(document.getElementById('people').value),
+        branch: branchInput.value.trim()
+      };
+
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(payload).toString()
+        });
+        const data = await res.json();
+        if (data.ok) {
+          msg.textContent = 'Saved!';
+          const reds = await loadRedemptions(payload.qrid);
+          renderStatusAndHistory(reds);
+          document.getElementById('save-btn').disabled = true;
+        } else {
+          msg.textContent = 'Error: ' + (data.error || data.result || 'failed');
+          saveBtn.disabled = false;
+        }
+      } catch (err) {
+        msg.textContent = 'Network error: ' + err.message;
+        saveBtn.disabled = false;
+      }
+    });
+
+    // ======= Boot =======
+    (async function init() {
+      // prefill date/time
+      setNow();
+
+      // Load members
+      try { await loadMembers(); } catch(e) {
+        alert('Failed to load members (Sheet1). Check your web app URL and permissions.');
+        console.error(e);
+      }
+      // Start camera
+      scanner = new Html5Qrcode('reader');
+      scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 }, onScanSuccess, onScanError)
+        .then(()=>{ scanMsg.textContent = 'Camera started. Point it at a QR code.'; })
+        .catch(err => {
+          document.getElementById('reader').innerHTML =
+            "<p class='bad'>Camera failed to start. Use HTTPS and allow camera access.</p>";
+          console.error(err);
+        });
+    })();
+  </script>
+</body>
+</html>

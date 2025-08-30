@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Member Lookup – Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    :root{
+      --bg:#000000; --panel:#000000; --muted:#93a4bf; --text:#e5e7eb; --line:#1f2a44;
+      --accent:#38bdf8; --accent2:#6366f1; --good:#22c55e; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #000000 0%, transparent 60%),
+        radial-gradient(1000px 500px at 110% 110%, #000000 0%, transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:16px 20px; border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.08) 60%, transparent);
+      position:sticky; top:0; z-index:5;
+    }
+    .brand{font-weight:700; letter-spacing:.2px}
+    .branch{opacity:.9}
+    .toolbar{display:flex; gap:8px; align-items:center}
+    .btn{
+      padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:#000000; color:#fff; cursor:pointer;
+    }
+    .btn.primary{ border-color:transparent; background:linear-gradient(180deg, var(--accent), var(--accent2)); }
+    .btn.ghost{ background:transparent; }
+    .btn.small{ padding:8px 12px; font-size:14px; }
+    .container{
+      max-width:1100px; margin:24px auto; padding:0 16px;
+      display:grid; grid-template-columns: 360px 1fr; gap:16px; align-items:start;
+      transition: grid-template-columns .25s ease;
+    }
+    .container.stacked{ grid-template-columns: 1fr; } /* after match, stack */
+    .card{
+      background:rgba(0, 0, 0, 0.7); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(6px);
+    }
+    #scanner-card{ width:100%; max-width:360px; } /* keep scanner small before scan */
+    #reader{ width:100%; max-width:100%; border-radius:12px; overflow:hidden; }
+    .status{ margin-top:8px; color:var(--muted); min-height:22px; }
+    .status .ok{ color:var(--good); font-weight:600; }
+    .status .bad{ color:var(--bad); font-weight:600; }
+    h2{ margin:0 0 8px 0; font-size:18px }
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    th,td{ padding:10px; border-bottom:1px solid var(--line); }
+    th{ background:rgba(0, 0, 0, 0.15); text-align:left; }
+    tr:hover td{ background:rgba(74, 136, 163, 0.05); }
+    .pill{ font-size:12px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; background:#0f172a; color:var(--muted); display:inline-block; margin-right:6px;}
+    .actions { display:flex; justify-content:flex-end; margin-top:10px; }
+    @media (max-width: 900px){ .container{ grid-template-columns: 1fr; } #scanner-card{max-width:none;} }
+
+
+
+     /* watermark logo (centered, light, click-through) */
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      background: url('https://sheelapalaceliffeyvalley.com/assets/club/logo-club.png') no-repeat center center;
+      background-size: clamp(320px, 45vw, 720px);
+      opacity: 0.12;           /* light transparent */
+      pointer-events: none;     /* don't block clicks */
+      z-index: 9999;            /* sit above cards so it stays visible */
+    }
+    
+  
+    /* === Idle slide-away (10s) === */
+    #scanner-card, #details-card{
+      transition: transform .6s ease, opacity .6s ease;
+      will-change: transform, opacity;
+    }
+    body.idle #scanner-card, body.idle #details-card{
+      transform: translateX(-120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* slight stagger so it feels smoother */
+    #scanner-card{ transition-delay: 0s; }
+    #details-card{ transition-delay: .08s; }
+
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand">Sheela Palace • Member Lookup</div>
+      <div class="branch">Active branch: <span id="branch-name">—</span></div>
+    </div>
+    <div class="toolbar">
+      <button id="customer-details" class="btn ghost" type="button">Customer Details</button>
+      <button id="rescan" class="btn" type="button">Rescan</button>
+      <button id="scan-image" class="btn primary" type="button">Scan from photo</button>
+      <input id="pick-image" type="file" accept="image/*" capture="environment" style="display:none;">
+    </div>
+  </header>
+
+  <main id="layout" class="container">
+    <!-- Scanner (left / top) -->
+    <section class="card" id="scanner-card">
+      <h2>QR Scanner</h2>
+      <div id="reader"></div>
+      <div class="status" id="scan-msg">Initializing…</div>
+      <div style="margin-top:8px;">
+        <span class="pill">Scanned ID: <span id="qr-result">—</span></span>
+        <span class="pill">Secure context: <span id="secure-ctx">—</span></span>
+      </div>
+    </section>
+
+    <!-- Member details (right / below) -->
+    <section class="card" id="details-card">
+      <h2>Member Details</h2>
+      <div id="result-area" class="muted">Scan a code to view details.</div>
+    </section>
+  </main>
+
+  <script>
+    // ======= Branch gate =======
+    const BRANCH_KEY = "branch_location";
+    const branch = localStorage.getItem(BRANCH_KEY);
+    const branchNameEl = document.getElementById("branch-name");
+    if (!branch) { window.location.href = "index.html"; }
+    else { branchNameEl.textContent = branch; };
+
+    // ======= Config =======
+    const scriptURL = "https://script.google.com/macros/s/AKfycbwBLU3_4xZ-oG-pmsD4tIC4yPjwMbKpnwv6tso5I6vs6TnA-q413o2vVBrc0aZIWXs/exec";
+    let allData = null;
+    let headers = null;
+    let qrScanner = null;
+
+    // ======= Helpers =======
+    const q = (s)=>document.querySelector(s);
+    const scanMsg = q("#scan-msg");
+    const layout = q("#layout");
+    const secureOK = (location.protocol === "https:") || (location.hostname === "localhost");
+    q("#secure-ctx").textContent = secureOK ? "Yes" : "No";
+
+    function headerIndex(hs){
+      if (!Array.isArray(hs)) return 3;
+      const idx = hs.findIndex(h => String(h).toLowerCase().includes("qr") && String(h).toLowerCase().includes("id"));
+      return idx >= 0 ? idx : 3;
+    }
+
+    async function loadData(){
+      if (allData) return allData;
+      const res = await fetch(scriptURL);
+      const data = await res.json();
+      headers = data[0] || [];
+      allData = data.slice(1);
+      return allData;
+    }
+
+    function renderDetails(row){
+      if (!row){ q("#result-area").innerHTML = '<span class="bad">No record found.</span>'; return; }
+      let html = '<div class="details-wrap">';
+      html += '<table><thead><tr>';
+      (headers||[]).forEach(h => { html += `<th>${h}</th>`; });
+      html += '</tr></thead><tbody><tr>';
+      row.forEach(cell => { html += `<td>${cell ?? ""}</td>`; });
+      html += '</tr></tbody></table>';
+      html += '<div class="actions"><button id="more-btn" class="btn primary small" type="button">More</button></div>';
+      html += '</div>';
+      q("#result-area").innerHTML = html;
+
+      // Attach handler to "More" button
+      const moreBtn = document.getElementById("more-btn");
+      if (moreBtn) {
+        moreBtn.addEventListener("click", () => {
+          window.location.href = "Checkfree.html";
+        });
+      }
+    }
+
+    function redirectToInsert(){
+      // Redirect WITHOUT passing any parameters
+      const target = "insert.html";
+      if (qrScanner) {
+        qrScanner.stop().catch(()=>{}).finally(()=>{ window.location.assign(target); });
+      } else {
+        window.location.assign(target);
+      }
+    }
+
+    // ======= Scanner =======
+    async function startCamera(){
+      if (!qrScanner) qrScanner = new Html5Qrcode("reader");
+      try{
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+        scanMsg.textContent = 'Camera started. Point it at a QR code.';
+      }catch(err){
+        scanMsg.innerHTML = "Camera failed: " + err + " — open over HTTPS or in Chrome/Safari.";
+        console.error(err);
+      }
+    }
+
+    function stopCamera(){
+      if (qrScanner) return qrScanner.stop().catch(()=>{});
+    }
+
+    async function onScanSuccess(decodedText){
+      q("#qr-result").textContent = decodedText;
+      scanMsg.innerHTML = '<span class="ok">Scanned.</span> Looking up member…';
+      try{
+        const data = await loadData();
+        const idx = headerIndex(headers);
+        const match = (data || []).find(row => String(row[idx]).trim() === String(decodedText).trim());
+        if (match){
+          renderDetails(match);
+          scanMsg.innerHTML = '<span class="ok">Member found.</span>';
+          layout.classList.add("stacked");      // switch to stacked AFTER data is found
+          await stopCamera();                    // stop to avoid re-triggers
+        }else{
+          scanMsg.innerHTML = '<span class="bad">No record found. Redirecting to insert…</span>';
+          redirectToInsert();
+        }
+      }catch(e){
+        console.error(e);
+        scanMsg.innerHTML = '<span class="bad">Lookup failed. Redirecting to insert…</span>';
+        redirectToInsert();
+      }
+    }
+    function onScanError(_){ /* ignore continuous decode errors */ }
+
+    // Controls
+
+    document.getElementById("customer-details").addEventListener("click", () => {
+      window.location.href = "finder.html";
+    });
+
+    document.getElementById("rescan").addEventListener("click", async () => {
+      q("#result-area").textContent = "Scan a code to view details.";
+      q("#qr-result").textContent = "—";
+      layout.classList.remove("stacked");       // go back to two columns before new scan
+      await stopCamera();
+      startCamera();
+    });
+
+    document.getElementById('scan-image').addEventListener('click', () => {
+      document.getElementById('pick-image').click();
+    });
+    document.getElementById('pick-image').addEventListener('change', async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      try {
+        if (!qrScanner) qrScanner = new Html5Qrcode('reader', { verbose: false });
+        const result = await qrScanner.scanFile(file, true);
+        onScanSuccess(result);
+        scanMsg.textContent = "QR decoded from image.";
+      } catch (e) {
+        scanMsg.textContent = "Failed to decode image: " + (e?.message || e);
+        console.error(e);
+      }
+    });
+
+    
+    // ======= Idle slide-away (10 seconds) =======
+    const IDLE_MS = 10 * 1000;
+    let idleTimer, idleActive = false;
+
+    function enterIdle(){
+      if (idleActive) return;
+      idleActive = true;
+      document.body.classList.add('idle');
+      // pause camera to save power
+      try { stopCamera(); } catch(_) {}
+    }
+    function exitIdle(){
+      if (!idleActive) return;
+      idleActive = false;
+      document.body.classList.remove('idle');
+      // resume camera only if we aren't showing stacked details
+      try {
+        if (!layout.classList.contains('stacked')) startCamera();
+      } catch(_) {}
+    }
+    function resetIdle(){
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(enterIdle, IDLE_MS);
+      if (idleActive) exitIdle();
+    }
+    ['mousemove','mousedown','keydown','touchstart','wheel'].forEach(evt => {
+      window.addEventListener(evt, resetIdle, { passive:true });
+    });
+    // kick off timer
+    resetIdle();
+
+
+    // Boot
+    (async function init(){
+      try{ await loadData(); }catch{ /* still allow scanning; we'll redirect on failure */ }
+      startCamera();
+    })();
+  </script>
+</body>
+</html>
